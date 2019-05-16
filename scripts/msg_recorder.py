@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import rospy
+import rospy, rospkg
 import time
 import sys, os
 import signal
@@ -7,6 +7,15 @@ import subprocess
 import threading
 import yaml, json
 
+from std_msgs.msg import (
+    Bool,
+)
+
+# _rosbag_caller
+_rosbag_caller = None
+
+# Publisher
+_recorder_running_pub = None
 
 # For clearing the last line on terminal screen
 #---------------------------------------------------#
@@ -24,7 +33,7 @@ class ROSBAG_CALLER:
     This is the function for handling the rosbag subprocess.
     """
     # Public methods
-    def __init__(self, param_dict):
+    def __init__(self, param_dict, node_name="msg_recorder"):
         """
         The param_dict contains the following elements:
         - output_dir (default: "./"): The directry of the output bag files
@@ -39,7 +48,9 @@ class ROSBAG_CALLER:
         """
         self._thread_rosbag = None
         self._ps = None
-        self.rosbag_node_name = "rosbag_subprocess_1"
+        self.rosbag_node_name_suffix = "rosbag_subprocess"
+        self.rosbag_node_name = node_name + "_"+ self.rosbag_node_name_suffix
+        print("rosbag_node_name = %s" % self.rosbag_node_name)
 
         # Parameters for rosbag record with default values
         self.output_dir = param_dict.get('output_dir', "./")
@@ -77,8 +88,10 @@ class ROSBAG_CALLER:
     def stop(self, _warning=False):
         """
         To stop recording
+
+        Note: If the stop() is called right after start(), then the rosnode kill might fail (the node is not intialized yet.)
         """
-        if self._is_thread_valid(): # subprocess is running
+        if self._is_thread_valid() and ( (not self._ps is None) and self._ps.poll() is None): # subprocess is running
             return self._terminate_rosbag(_warning=_warning)
         else:
             if _warning:
@@ -106,6 +119,8 @@ class ROSBAG_CALLER:
         subprocess.call("cd " + self.output_dir, shell=True)
         subprocess.call("pwd", shell=True)
         """
+        # New subprocess
+        #----------------------------#
         try:
             _out = subprocess.check_output(["mkdir", self.output_dir], stderr=subprocess.STDOUT)
             print("The directory <%s> has been created." % self.output_dir)
@@ -147,25 +162,40 @@ class ROSBAG_CALLER:
         """
         The wraper for killing rosbag
         """
+        # First try
         try:
             # self._ps.terminate() # TODO: replace this to a signal to the thread
             # self._ps.send_signal(signal.SIGTERM) # <-- This method cannot cleanly kill the rosbag.
             # subprocess.Popen(["rosnode", "kill", "/rosbag_subprocess"]) # <-- this method can close the rosbag cleanly.
-            subprocess.Popen(["rosnode", "kill", ("/%s" % self.rosbag_node_name) ]) # <-- this method can close the rosbag cleanly.
+            # subprocess.Popen(["rosnode", "kill", ("/%s" % self.rosbag_node_name) ]) # <-- this method can close the rosbag cleanly.
+            subprocess.Popen("rosnode kill /%s" % self.rosbag_node_name, shell=True) # <-- this method can close the rosbag cleanly.
+            # subprocess.call(["rosnode", "kill", ("/%s" % self.rosbag_node_name) ]) # <-- this method can close the rosbag cleanly.
+            # subprocess.call("rosnode kill /%s" % self.rosbag_node_name, shell=True) # <-- this method can close the rosbag cleanly.
             return True
         except:
             if _warning:
-                print("The process does not exit.")
-            return False
+                print("The process cannot be killed by rosnode kill.")
+        # Second try
+        try:
+            self._ps.terminate() #
+            if _warning:
+                print("The rosbag is killed through SIGTERM, the bag might still be active.")
+            return True
+        except:
+            print("Something wrong while killing the rosbag subprocess")
+        #
+        return False
     #-------------------------------------#
 
     def _rosbag_watcher(self):
         """
         This function run as a thread to look after the rosbag process.
         """
+        global _recorder_running_pub
         # The private method to start the process
         self._open_rosbag()
         print("=== Subprocess started.===")
+        _recorder_running_pub.publish(True)
         #
         time_start = time.time()
         while self._ps.poll() is None:
@@ -176,18 +206,41 @@ class ROSBAG_CALLER:
         result = self._ps.poll()
         print("result = %s" % str(result))
         print("=== Subprocess finished.===")
+        _recorder_running_pub.publish(False)
+
+        # Clear the handle, indicating that no process is running
         # self._ps = None
         return
 
 
 
+def _record_cmd_callback(data):
+    """
+    The callback function for operation command.
+    """
+    global _rosbag_caller
+    if data.data:
+        _rosbag_caller.start(_warning=True)
+    else:
+        _rosbag_caller.stop(_warning=True)
 
 def main(args):
+    global _rosbag_caller
+    global _recorder_running_pub
+    #
     rospy.init_node('msg_recorder', anonymous=True)
-
+    #
+    _node_name = rospy.get_name()[1:] # Removing the '/'
+    print("_node_name = %s" % _node_name)
+    #
+    rospack = rospkg.RosPack()
+    _pack_path = rospack.get_path('msg_recorder')
+    print("_pack_path = %s" % _pack_path)
     # Loading parameters
     #---------------------------------------------#
-    f_path = "./"
+    rospack = rospkg.RosPack()
+    pack_path = rospack.get_path('msg_recorder')
+    f_path = _pack_path + "/params/"
     f_name_params = "rosbag_setting.yaml"
     f_name_topics = "record_topics.txt"
 
@@ -221,7 +274,21 @@ def main(args):
 
     #---------------------------------------------#
 
-    _rosbag_caller = ROSBAG_CALLER(param_dict)
+    # Subscriber
+    _rosbag_caller = ROSBAG_CALLER(param_dict, _node_name)
+    # Publisher
+    _recorder_running_pub = rospy.Publisher("/recorder/running", Bool, queue_size=10, latch=True) #
+    _recorder_running_pub.publish(False)
+
+
+
+
+    # Init ROS communication interface
+    #--------------------------------------#
+    rospy.Subscriber("/recorder/rercord", Bool, _record_cmd_callback)
+    #--------------------------------------#
+
+    # Loop for user command via stdin
     while not rospy.is_shutdown():
         # A blocking std_in function
         str_in = raw_input("Type a command and press ENTER (s:start/t:terminate/q:quit): \n")
