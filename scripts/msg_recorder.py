@@ -13,6 +13,7 @@ import dircache
 import shutil
 
 from std_msgs.msg import (
+    Empty,
     Bool,
 )
 
@@ -137,7 +138,7 @@ class ROSBAG_CALLER:
         """
         To start recording.
         """
-        if not self._is_thread_valid():
+        if not self._is_thread_rosbag_valid():
             self._thread_rosbag = threading.Thread(target=self._rosbag_watcher)
             self._thread_rosbag.start()
             return True
@@ -152,20 +153,32 @@ class ROSBAG_CALLER:
 
         Note: If the stop() is called right after start(), then the rosnode kill might fail (the node is not intialized yet.)
         """
-        if self._is_thread_valid() and ( (not self._ps is None) and self._ps.poll() is None): # subprocess is running
+        if self._is_thread_rosbag_valid() and ( (not self._ps is None) and self._ps.poll() is None): # subprocess is running
             return self._terminate_rosbag(_warning=_warning)
         else:
             if _warning:
                 print("rosbag is not running, no action.")
             return False
 
+    def backup(self):
+        """
+        Backup all the files interset with time zone.
+
+        Use a deamon thread to complete the work even if the program is killed.
+        """
+        _t = threading.Thread(target=self._keep_files_before_and_after)
+        _t.daemon = True
+        _t.start()
 
     # Private methods
-    def _is_thread_valid(self):
+    def _is_thread_rosbag_valid(self):
         """
         Check if the thread is running.
         """
-        return ( (not self._thread_rosbag is None) and self._thread_rosbag.is_alive() )
+        try:
+            return ( (not self._thread_rosbag is None) and self._thread_rosbag.is_alive() )
+        except:
+            return False
 
     # Subprocess controll
     #-------------------------------------#
@@ -298,6 +311,7 @@ class ROSBAG_CALLER:
         print('target_name_prefix_date = %s' % target_name_prefix_date)
         # Seraching
         closest_file_name = None
+        is_last = True
         # Assume the file_list is sorted in ascending order
         for i in range(len(file_list)):
             # if file_list[-1-i].rfind('.active') >= 0:
@@ -310,6 +324,8 @@ class ROSBAG_CALLER:
             if file_list[-1-i] < target_name_prefix_date:
                 closest_file_name = file_list[-1-i]
                 break
+            else:
+                is_last = False
         """
         # Assume the file_list is not sorted
         for i in range(len(file_list)):
@@ -324,11 +340,13 @@ class ROSBAG_CALLER:
                 if (closest_file_name is None) or (file_list[i] > closest_file_name):
                     # Note: None is actually smaller than anything
                     closest_file_name = file_list[i]
+            else:
+                is_last = False
             #
         """
         # Note: it's possible to return a None when there is no file in the directory or no inactive file before the given time
         # e.g. We are just recording the first bag (which is acive)
-        return closest_file_name
+        return (closest_file_name, is_last)
 
     def _get_list_of_inactive_bag_in_timezone(self, timestamp_start, timestamp_end=None):
         """
@@ -371,7 +389,7 @@ class ROSBAG_CALLER:
         return file_in_zone_list
 
 
-    def keep_files_before_and_after(self):
+    def _keep_files_before_and_after(self):
         """
         To keep 2 files: before and after
 
@@ -380,8 +398,8 @@ class ROSBAG_CALLER:
         b.bag.active
 
         Solution (rough concept):
-        1. Backup (copy) the a.bag immediately <-- In another thread (deamon, in case that the main program being closed)
-        2. Start a thread (deamon, in case that the main program being closed) for listening that if the b.bag.active has become the b.bag
+        1. Backup (copy) the a.bag immediately <-- This is already done in a deamon thread according to the way of this function call. (in case that the main program being closed)
+        2. Start another thread (deamon, in case that the main program being closed) for listening that if the b.bag.active has become the b.bag
 
         Since the original rosbag using date as file name, we don't bother to track the file midification time.
         """
@@ -393,13 +411,50 @@ class ROSBAG_CALLER:
         _post_trigger_timestamp = _trigger_timestamp + self.time_post_triger
 
         # Find all the "a.bag" files
-        file_in_zone_list = self._get_list_of_inactive_bag_in_timezone( _pre_trigger_timestamp, _trigger_timestamp)
-        print("file_in_zone_list = %s" % file_in_zone_list)
+        file_in_pre_zone_list = self._get_list_of_inactive_bag_in_timezone( _pre_trigger_timestamp, _trigger_timestamp)
+        print("file_in_pre_zone_list = %s" % file_in_pre_zone_list)
         # Bacuk up "a.bag", note tha empty list is allowed
-        for _F in file_in_zone_list:
+        for _F in file_in_pre_zone_list:
             shutil.copy2( (self.output_dir_tmp + _F), self.output_dir_kept)
 
-        # Start a thread for watching the "b.bag"
+        # Start a deamon thread for watching the "b.bag"
+        _t = threading.Thread(target=self._keep_files_after, args=(_trigger_timestamp, _post_trigger_timestamp, file_in_pre_zone_list))
+        _t.daemon = True
+        _t.start()
+        print("===Pre-triggered-file backup thread finished.===")
+
+    def _keep_files_after(self, _trigger_timestamp, _post_trigger_timestamp, file_in_pre_zone_list):
+        """
+        This is a worker for listening the post-triggered bags.
+        """
+        # Wait ntil reached the _post_trigger_timestamp
+        """
+        # Note: this is not good for prone to lost the latest post-file.
+        time.sleep(_post_trigger_timestamp - _trigger_timestamp)
+        """
+        # Start listening, first stage
+        time_start = time.time()
+        while self._is_thread_rosbag_valid():
+            duration = time.time() - time_start
+            print("---===Post-triggered file backup thread is running, duration = %f" % duration)
+            #
+            (closest_file_name, is_last) = self._get_latest_inactive_bag(_post_trigger_timestamp)
+            if not closest_file_name in file_in_pre_zone_list:
+                shutil.copy2( (self.output_dir_tmp + closest_file_name), self.output_dir_kept)
+                file_in_pre_zone_list.append(closest_file_name)
+            if not is_last:
+                break
+            time.sleep(1.0)
+        #
+        # Find all the rest "b.bag" files
+        # Note: most of them had been backuped
+        file_in_post_zone_list = self._get_list_of_inactive_bag_in_timezone( _trigger_timestamp, _post_trigger_timestamp)
+        print("file_in_post_zone_list = %s" % file_in_post_zone_list)
+        # Bacuk up "a.bag", note tha empty list is allowed
+        for _F in file_in_post_zone_list:
+            if not _F in file_in_pre_zone_list:
+                shutil.copy2( (self.output_dir_tmp + _F), self.output_dir_kept)
+        print("===Post-triggered file backup thread finished.===")
     #----------------------------------------------#
 
 
@@ -413,6 +468,13 @@ def _record_cmd_callback(data):
         _rosbag_caller.start(_warning=True)
     else:
         _rosbag_caller.stop(_warning=True)
+
+def _backup_trigger_callback(data):
+    """
+    The callback function for operation command.
+    """
+    global _rosbag_caller
+    _rosbag_caller.backup()
 
 def main(args):
     global _rosbag_caller
@@ -468,7 +530,7 @@ def main(args):
     #--------------------------------------#
     # Subscriber
     rospy.Subscriber("/REC/rercord", Bool, _record_cmd_callback)
-    # rospy.Subscriber("/REC/req_bag_saving", Bool, _record_cmd_callback)
+    rospy.Subscriber("/REC/req_backup", Bool, _backup_trigger_callback)
     # Publisher
     _recorder_running_pub = rospy.Publisher("/REC/is_recording", Bool, queue_size=10, latch=True) #
     _recorder_running_pub.publish(False)
@@ -500,8 +562,7 @@ def main(args):
         elif str_in == 't':
             _rosbag_caller.stop(_warning=True)
         elif str_in == 'k':
-            _rosbag_caller.keep_files_before_and_after()
-            # _rosbag_caller.stop(_warning=True)
+            _rosbag_caller.backup()
         elif str_in == 'q':
             _rosbag_caller.stop(_warning=False)
             break
