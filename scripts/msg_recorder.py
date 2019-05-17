@@ -419,22 +419,26 @@ class ROSBAG_CALLER:
         for _F in file_in_pre_zone_list:
             shutil.copy2( (self.output_dir_tmp + _F), self.output_dir_kept)
 
+        """
         # Start a deamon thread for watching the "b.bag"
         _t = threading.Thread(target=self._keep_files_after, args=(_trigger_timestamp, _post_trigger_timestamp, file_in_pre_zone_list))
         _t.daemon = True
         _t.start()
-        print("===Pre-triggered-file backup thread finished.===")
+        """
 
+        print("===Pre-triggered-file backup finished.===")
+
+        """
     def _keep_files_after(self, _trigger_timestamp, _post_trigger_timestamp, file_in_pre_zone_list):
-        """
-        This is a worker for listening the post-triggered bags.
-        """
+
+        # This is a worker for listening the post-triggered bags.
+
         # Wait ntil reached the _post_trigger_timestamp
-        """
         # Note: this is not good for prone to lost the latest post-file.
-        time.sleep(_post_trigger_timestamp - _trigger_timestamp)
+        # time.sleep(_post_trigger_timestamp - _trigger_timestamp)
         """
-        # Start listening, first stage
+
+        # Start listening, first stage (before _post_trigger_timestamp) and second stage (after _post_trigger_timestamp)
         time_start = time.time()
         while self._is_thread_rosbag_valid():
             duration = time.time() - time_start
@@ -455,8 +459,23 @@ class ROSBAG_CALLER:
         # Bacuk up "a.bag", note tha empty list is allowed
         for _F in file_in_post_zone_list:
             if not _F in file_in_pre_zone_list:
+                file_in_pre_zone_list.append(_F)
                 shutil.copy2( (self.output_dir_tmp + _F), self.output_dir_kept)
-        print("===Post-triggered file backup thread finished.===")
+
+        # Write an indication text
+        file_in_pre_zone_list.sort()
+        _fh = open(self.output_dir_kept + "backup_history.txt", "a")
+        triggered_datetime = datetime.datetime.fromtimestamp(_trigger_timestamp)
+        # triggered_datetime_s = target_date.strftime("%Y-%m-%d-%H-%M-%S")
+        _fh.write("\n\n#Triggered at [%s]\n##backup-files:\n" % str(triggered_datetime) )
+        # _fh.write(str(file_in_pre_zone_list))
+        for _F in file_in_pre_zone_list:
+            _fh.write(" - %s\n" % _F )
+        _fh.write("\n")
+        _fh.close()
+        #
+
+        print("===Post-triggered file backup finished, end of thread.===")
     #----------------------------------------------#
 
 
@@ -622,9 +641,9 @@ def main(sys_args):
     print("End of main loop.")
 
 
+
+
 if __name__ == '__main__':
-
-
 
     try:
         main(sys.argv)
