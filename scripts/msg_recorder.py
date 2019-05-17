@@ -29,10 +29,11 @@ _recorder_running_pub = None
 #---------------------------------------------------#
 CURSOR_UP_ONE = '\x1b[1A'
 ERASE_LINE = '\x1b[2K'
-def delete_last_lines(n=1):
+def erase_last_lines(n=1, erase=False):
     for _ in range(n):
         sys.stdout.write(CURSOR_UP_ONE)
-        sys.stdout.write(ERASE_LINE)
+        if erase:
+            sys.stdout.write(ERASE_LINE)
 #---------------------------------------------------#
 
 
@@ -279,8 +280,10 @@ class ROSBAG_CALLER:
         time_start = time.time()
         while self._ps.poll() is None:
             duration = time.time() - time_start
-            print("---Subprocess is running, duration = %f" % duration)
-            # delete_last_lines()
+            # print("                                                  |")
+            print("---Subprocess is running, duration = %f     |" % duration)
+            # print("                                                  |")
+            # erase_last_lines(n=3, erase=False) # To make the cursor position back to the front of line
             time.sleep(1.0)
         result = self._ps.poll()
         print("result = %s" % str(result))
@@ -310,7 +313,7 @@ class ROSBAG_CALLER:
         # print('target_date = %s' % str(target_date))
         # print('target_date_formate = %s' % target_date_formate)
         target_name_prefix_date = self.bag_name_prefix + '_' + target_date_formate
-        print('target_name_prefix_date = %s' % target_name_prefix_date)
+        # print('target_name_prefix_date = %s' % target_name_prefix_date)
         # Seraching
         closest_file_name = None
         is_last = True
@@ -368,8 +371,8 @@ class ROSBAG_CALLER:
         # print('target_date_end_formate = %s' % target_date_end_formate)
         target_name_prefix_date_start = self.bag_name_prefix + '_' + target_date_start_formate
         target_name_prefix_date_end = self.bag_name_prefix + '_' + target_date_end_formate
-        print('target_name_prefix_date_start = %s' % target_name_prefix_date_start)
-        print('target_name_prefix_date_end = %s' % target_name_prefix_date_end)
+        # print('target_name_prefix_date_start = %s' % target_name_prefix_date_start)
+        # print('target_name_prefix_date_end = %s' % target_name_prefix_date_end)
         # Seraching
         file_in_zone_list = []
         # Assume the file_list is sorted in ascending order
@@ -442,7 +445,10 @@ class ROSBAG_CALLER:
         time_start = time.time()
         while self._is_thread_rosbag_valid():
             duration = time.time() - time_start
-            print("---===Post-triggered file backup thread is running, duration = %f" % duration)
+            # print("                                                  |")
+            # print("                                                  |")
+            print("---===Post-triggered file backup thread is running, duration = %f            |" % duration)
+            # erase_last_lines(n=3, erase=False) # To make the cursor position back to the front of line
             #
             (closest_file_name, is_last) = self._get_latest_inactive_bag(_post_trigger_timestamp)
             if not closest_file_name in file_in_pre_zone_list:
@@ -514,6 +520,8 @@ def main(sys_args):
     group = parser.add_mutually_exclusive_group()
     group.add_argument("-A", "--auto", action="store_true", help="continuous recording with triggered backup")
     group.add_argument("-M", "--manual", action="store_true", help="manually control the start/stop of recorder")
+    # UI setting
+    parser.add_argument("--NO_KEY_IN", action="store_true", help="disable the stdin (keyboard) user-input")
     # Full setting, the following setting will overwrite the above settings.
     parser.add_argument("-d", "--PARAM_DIR", help="specify the directory of the setting-file and topics-file")
     parser.add_argument("-s", "--SETTING_F", help="specify the filename of the setting-file")
@@ -582,16 +590,25 @@ def main(sys_args):
         if len(_s1) > 0: # Append non-empty string (after stripping)
             topic_list.append(_s1)
     _f.close()
-    print("topic_list = %s" % str(topic_list))
     #------------------------#
+
+
+    # Print the params
+    # print("param_dict = %s" % str(param_dict))
+    print("\nsettings (in json format):\n%s" % json.dumps(param_dict, indent=4))
+    print("\n\ntopic_list:\n---------------" )
+    for _tp in topic_list:
+        print(_tp)
+    print("---------------\n\n" )
+
 
     # Add the 'topics' to param_dict
     param_dict['topics'] = topic_list
 
-    # test
-    print("param_dict = %s" % str(param_dict))
-    # print("param_dict (in json format):\n%s" % json.dumps(param_dict, indent=4))
 
+    # test, the param_dict after combination
+    # print("param_dict = %s" % str(param_dict))
+    # print("param_dict (in json format):\n%s" % json.dumps(param_dict, indent=4))
     #---------------------------------------------#
 
     # Init ROS communication interface
@@ -622,20 +639,21 @@ def main(sys_args):
 
     # Loop for user command via stdin
     while not rospy.is_shutdown():
-        # A blocking std_in function
-        str_in = raw_input("\n----------------------\nType a command and press ENTER:\n----------------------\ns:start \nt:terminate \nk:keep file \nq:quit \n----------------------\n>>> ")
-        #
-        if str_in == 's':
-            _rosbag_caller.start(_warning=True)
-        elif str_in == 't':
-            _rosbag_caller.stop(_warning=True)
-        elif str_in == 'k':
-            _rosbag_caller.backup()
-        elif str_in == 'q':
-            _rosbag_caller.stop(_warning=False)
-            break
-        else:
-            pass
+        if not _args.NO_KEY_IN:
+            # A blocking std_in function
+            str_in = raw_input("\n----------------------\nType a command and press ENTER:\n----------------------\ns:start \nt:terminate \nk:keep file \nq:quit \n----------------------\n>>> ")
+            #
+            if str_in == 's':
+                _rosbag_caller.start(_warning=True)
+            elif str_in == 't':
+                _rosbag_caller.stop(_warning=True)
+            elif str_in == 'k':
+                _rosbag_caller.backup()
+            elif str_in == 'q':
+                _rosbag_caller.stop(_warning=False)
+                break
+            else:
+                pass
         #
         time.sleep(0.5)
     print("End of main loop.")
