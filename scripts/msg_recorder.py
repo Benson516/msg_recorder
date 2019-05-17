@@ -489,7 +489,7 @@ def main(sys_args):
     global _recorder_running_pub
 
     # Process arguments
-    parser = argparse.ArgumentParser(description="Record ROS messages to rosbag files with enhanced controlability.\nThere are mainly two usage:\n- Manual-mode: simple start/stop record control\n- Auto-mode: Continuous recording with files backup via triggers.")
+    parser = argparse.ArgumentParser(description="Record ROS messages to rosbag files with enhanced controllability.\nThere are mainly two usage:\n- Manual-mode: simple start/stop record control\n- Auto-mode: Continuous recording with files backup via triggers.")
     #---------------------------#
     # Explicitly chose to auto-mode or manual-mode (exculsive)
     group = parser.add_mutually_exclusive_group()
