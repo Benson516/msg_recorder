@@ -1,5 +1,5 @@
 #---------------------#
-start_at_begining:  false # Determin if it's going to start rosbag record when the program begin
+start_at_begining:  true # Determin if it's going to start rosbag record when the program begin
 #---------------------#
 
 # I/O setting
@@ -14,11 +14,11 @@ output_dir_kept:    ~/rosbag_files/backup
 
 # Output behavior setting
 #-----------------------------------#
-is_splitting:       false
+is_splitting:       true
 split_size:         1024    # MB, no effect if no split
 max_split_num:      6       # Maximum number of split files. The oldest file will be delete When the one is generated, no effect if no split; empty -> None
 #-----------------------------------#
-record_duration:            # duration to stop/split; empty -> None -> eternal; 1m -> 1 min.; 30 -> 30 sec.; 2h -> 2 hours
+record_duration:    2       # duration to stop/split; empty -> None -> eternal; 1m -> 1 min.; 30 -> 30 sec.; 2h -> 2 hours
 #-----------------------------------#
 is_compressed:      false
 compression_method: lz4     # lz4/bz2, default -> lz4; bz2 -> slow, high compression; lz4 -> fast, low compression

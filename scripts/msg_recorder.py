@@ -11,6 +11,8 @@ import yaml, json
 import datetime
 import dircache
 import shutil
+# Args
+import argparse
 
 from std_msgs.msg import (
     Empty,
@@ -476,9 +478,32 @@ def _backup_trigger_callback(data):
     global _rosbag_caller
     _rosbag_caller.backup()
 
-def main(args):
+
+
+
+
+
+
+def main(sys_args):
     global _rosbag_caller
     global _recorder_running_pub
+
+    # Process arguments
+    parser = argparse.ArgumentParser(description="Record ROS messages to rosbag files with enhanced controlability.\nThere are mainly two usage:\n- Manual-mode: simple start/stop record control\n- Auto-mode: Continuous recording with files backup via triggers.")
+    #---------------------------#
+    # Explicitly chose to auto-mode or manual-mode (exculsive)
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("-A", "--auto", action="store_true", help="continuous recording with triggered backup")
+    group.add_argument("-M", "--manual", action="store_true", help="manually control the start/stop of recorder")
+    # Full setting, the following setting will overwrite the above settings.
+    parser.add_argument("-d", "--PARAM_DIR", help="specify the directory of the setting-file and topics-file")
+    parser.add_argument("-s", "--SETTING_F", help="specify the filename of the setting-file")
+    parser.add_argument("-t", "--TOPICS_F", help="specify the filename of the topics-file")
+    #---------------------------#
+    _args = parser.parse_args()
+
+
+
     #
     rospy.init_node('msg_recorder', anonymous=True)
     #
@@ -493,8 +518,32 @@ def main(args):
     rospack = rospkg.RosPack()
     pack_path = rospack.get_path('msg_recorder')
     f_path = _pack_path + "/params/"
+
+    # Manual mode
     f_name_params = "rosbag_setting.yaml"
     f_name_topics = "record_topics.txt"
+
+
+    # Overwriting default values
+    #-----------------------------------#
+    # Auto/manual
+    if _args.auto:
+        f_name_params = "rosbag_setting_auto.yaml"
+        f_name_topics = "record_topics_auto.txt"
+    elif _args.manual:
+        # Default is manual-mode, nothing to do
+        pass
+
+    # Customize
+    if not _args.PARAM_DIR is None:
+        f_path = _args.PARAM_DIR
+        if f_path[-1] != '/':
+            f_path += '/'
+    if not _args.SETTING_F is None:
+        f_name_params = _args.SETTING_F
+    if not _args.TOPICS_F is None:
+        f_name_topics = _args.TOPICS_F
+    #-----------------------------------#
 
     # Read param file
     #------------------------#
@@ -574,6 +623,9 @@ def main(args):
 
 
 if __name__ == '__main__':
+
+
+
     try:
         main(sys.argv)
     except rospy.ROSInterruptException:
