@@ -23,7 +23,7 @@ from std_msgs.msg import (
 _rosbag_caller = None
 
 # Publisher
-_recorder_running_pub = None
+# _recorder_running_pub = None
 
 # For clearing the last line on terminal screen
 #---------------------------------------------------#
@@ -68,6 +68,7 @@ class ROSBAG_CALLER:
         self.rosbag_node_name_suffix = "rosbag_subprocess"
         self.rosbag_node_name = node_name + "_"+ self.rosbag_node_name_suffix
         print("rosbag_node_name = %s" % self.rosbag_node_name)
+        self._state_sender_func = None
         #
         self._last_trigger_timestamp = 0.0
 
@@ -136,6 +137,13 @@ class ROSBAG_CALLER:
             print("The directry <%s> already exists." % self.output_dir_kept)
             pass
 
+    def attach_state_sender(self, sender_func):
+        """
+        This is a public method for binding a "publisher.publish" method
+        input:
+        - sender_func: a publisher.publish method
+        """
+        self._state_sender_func = sender_func
 
     def start(self, _warning=False):
         """
@@ -170,7 +178,7 @@ class ROSBAG_CALLER:
         Use a deamon thread to complete the work even if the program is killed.
         """
         _t = threading.Thread(target=self._keep_files_before_and_after)
-        _t.daemon = True
+        # _t.daemon = True
         _t.start()
 
     # Private methods
@@ -182,6 +190,16 @@ class ROSBAG_CALLER:
             return ( (not self._thread_rosbag is None) and self._thread_rosbag.is_alive() )
         except:
             return False
+
+    def _send_rosbag_state(self, is_running, _warning=False):
+        """
+        This is the output funtion for sending the staet of the rosbag out.
+        """
+        try:
+            self._state_sender_func(is_running)
+        except:
+            if _warning:
+                print("No _stat_sender_func or the attached funtion gots error.")
 
     # Subprocess controll
     #-------------------------------------#
@@ -271,11 +289,12 @@ class ROSBAG_CALLER:
         """
         This function run as a thread to look after the rosbag process.
         """
-        global _recorder_running_pub
+        # global _recorder_running_pub
         # The private method to start the process
         self._open_rosbag()
         print("=== Subprocess started.===")
-        _recorder_running_pub.publish(True)
+        self._send_rosbag_state(True)
+        # _recorder_running_pub.publish(True)
         #
         time_start = time.time()
         while self._ps.poll() is None:
@@ -288,7 +307,8 @@ class ROSBAG_CALLER:
         result = self._ps.poll()
         print("result = %s" % str(result))
         print("=== Subprocess finished.===")
-        _recorder_running_pub.publish(False)
+        self._send_rosbag_state(False)
+        # _recorder_running_pub.publish(False)
 
         # Clear the handle, indicating that no process is running
         # self._ps = None
@@ -473,7 +493,7 @@ class ROSBAG_CALLER:
         _fh = open(self.output_dir_kept + "backup_history.txt", "a")
         triggered_datetime = datetime.datetime.fromtimestamp(_trigger_timestamp)
         # triggered_datetime_s = target_date.strftime("%Y-%m-%d-%H-%M-%S")
-        _fh.write("\n\n#Triggered at [%s]\n##backup-files:\n" % str(triggered_datetime) )
+        _fh.write("\n\n# Triggered at [%s]\n## backup-files:\n" % str(triggered_datetime) )
         # _fh.write(str(file_in_pre_zone_list))
         for _F in file_in_pre_zone_list:
             _fh.write(" - %s\n" % _F )
@@ -506,12 +526,9 @@ def _backup_trigger_callback(data):
 
 
 
-
-
-
 def main(sys_args):
     global _rosbag_caller
-    global _recorder_running_pub
+    # global _recorder_running_pub
 
     # Process arguments
     parser = argparse.ArgumentParser(description="Record ROS messages to rosbag files with enhanced controllability.\nThere are mainly two usage:\n- Manual-mode: simple start/stop record control\n- Auto-mode: Continuous recording with files backup via triggers.")
@@ -628,6 +645,8 @@ def main(sys_args):
     # The manager for rosbag record
     #---------------------------------------------#
     _rosbag_caller = ROSBAG_CALLER(param_dict, _node_name)
+    _rosbag_caller.attach_state_sender(_recorder_running_pub.publish)
+
     # Start at beginning
     if param_dict['start_at_begining']:
         _rosbag_caller.start(_warning=True)
@@ -635,11 +654,13 @@ def main(sys_args):
 
 
 
+    # Determine if we are using keyboard input
+    _is_key_in = _args.NO_KEY_IN
 
 
     # Loop for user command via stdin
     while not rospy.is_shutdown():
-        if not _args.NO_KEY_IN:
+        if not _is_key_in:
             # A blocking std_in function
             str_in = raw_input("\n----------------------\nType a command and press ENTER:\n----------------------\ns:start \nt:terminate \nk:keep file \nq:quit \n----------------------\n>>> ")
             #
