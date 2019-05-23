@@ -20,7 +20,7 @@ Auto-mode:
 $ rosrun msg_recorder msg_recorder.py -A
 ```
 
-Manual mode:
+Manual-mode:
 ```
 $ rosrun msg_recorder msg_recorder.py
 ```
