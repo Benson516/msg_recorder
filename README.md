@@ -35,18 +35,18 @@ $ rosrun msg_recorder msg_recorder.py -A --NO_KEY_IN
 ----------------------
 Type a command and press ENTER:
 ----------------------
-s:start 
-t:terminate 
-k:keep file 
-q:quit 
+s:start
+t:terminate
+k:keep file
+q:quit
 ----------------------
->>> 
+>>>
 ```
 
 ## ROS Topics I/O
 
 ```
-- /REC/rercord:      input, require start/stop recording, type: Bool, value={True:start recording, False:stop recording}
+- /REC/record:      input, require start/stop recording, type: Bool, value={True:start recording, False:stop recording}
 - /REC/req_backup:   input, trigger for backing-up bags, type: Empty, value={}
 - /REC/is_recording: latched output, displaying the status of the recorder, type: Bool, value={True:recording, False:stopped}
 ```
@@ -89,7 +89,7 @@ record_topics.txt
 /abc    
 /def
 /ghi   
-   
+
    /jkl
 /mno
 aa
@@ -173,10 +173,10 @@ msg_recorder
               |- rosbag_setting_auto.yaml        
               |- record_topics_auto.txt                    
 ```                   
-                          
+
 # ROS Nodes
 ```
-msg_recorder.py 
+msg_recorder.py
 ```
 
 # Dependency
@@ -185,8 +185,7 @@ msg_recorder.py
 # Known Issues
 
 - If the main thread is terminated by SIGKILL (e.g. $ kill -9), the rosbag subprocess won't stop.
-  
+
   Note: normal termination like SIGTERM (ctrl-c) or key-in: "q" will quit cleanly
-  
+
   --> If you are facing this problem, find out the PID by $ps ax |grep rosbag/record and kill it by $ kill -9 (PID)
-  
