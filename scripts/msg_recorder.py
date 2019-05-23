@@ -59,8 +59,8 @@ class ROSBAG_CALLER:
         - is_recording_all_topics (default: True): To record all topics or not
         - topics (default: []): a list of topics names (with or without "/" are allowabled)
         #
-        - time_pre_triger (default: 60.0 sec.): Keep all records since time_pre_triger
-        - time_post_triger (default: 5.0 sec.): Keep all records before time_post_triger
+        - time_pre_trigger (default: 60.0 sec.): Keep all records since time_pre_trigger
+        - time_post_trigger (default: 5.0 sec.): Keep all records before time_post_trigger
         """
         # Variables
         self._thread_rosbag = None
@@ -88,8 +88,8 @@ class ROSBAG_CALLER:
         self.is_recording_all_topics = param_dict.get('is_recording_all_topics', True)
         self.topic_list = param_dict.get('topics', [])
         #
-        self.time_pre_triger = param_dict.get('time_pre_triger', 60.0)
-        self.time_post_triger = param_dict.get('time_post_triger', 5.0)
+        self.time_pre_trigger = param_dict.get('time_pre_trigger', 60.0)
+        self.time_post_trigger = param_dict.get('time_post_trigger', 5.0)
 
         # The self.output_dir_tmp and self.output_dir_kept cannot be the same.
         if self.output_dir_tmp == self.output_dir_kept:
@@ -432,8 +432,8 @@ class ROSBAG_CALLER:
         _trigger_timestamp = time.time()
         self._last_trigger_timestamp = _trigger_timestamp
         #
-        _pre_trigger_timestamp = _trigger_timestamp - self.time_pre_triger
-        _post_trigger_timestamp = _trigger_timestamp + self.time_post_triger
+        _pre_trigger_timestamp = _trigger_timestamp - self.time_pre_trigger
+        _post_trigger_timestamp = _trigger_timestamp + self.time_post_trigger
 
         # Find all the "a.bag" files
         file_in_pre_zone_list = self._get_list_of_inactive_bag_in_timezone( _pre_trigger_timestamp, _trigger_timestamp)

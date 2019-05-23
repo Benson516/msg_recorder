@@ -146,8 +146,8 @@ compression_method: lz4     # lz4/bz2, default -> lz4; bz2 -> slow, high compres
 
 # Backup setting
 #-----------------------------------#
-time_pre_triger:    5.0    # sec.
-time_post_triger:   5.0    # sec.
+time_pre_trigger:    5.0    # sec.
+time_post_trigger:   5.0    # sec.
 #-----------------------------------#
 
 # Performance tunning
