@@ -632,7 +632,7 @@ def main(sys_args):
     #--------------------------------------#
     # Subscriber
     rospy.Subscriber("/REC/record", Bool, _record_cmd_callback)
-    rospy.Subscriber("/REC/req_backup", Bool, _backup_trigger_callback)
+    rospy.Subscriber("/REC/req_backup", Empty, _backup_trigger_callback)
     # Publisher
     _recorder_running_pub = rospy.Publisher("/REC/is_recording", Bool, queue_size=10, latch=True) #
     _recorder_running_pub.publish(False)
