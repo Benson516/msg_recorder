@@ -490,18 +490,25 @@ class ROSBAG_CALLER:
 
         # Write an indication text
         file_in_pre_zone_list.sort()
-        _fh = open(self.output_dir_kept + "backup_history.txt", "a")
+
         triggered_datetime = datetime.datetime.fromtimestamp(_trigger_timestamp)
         # triggered_datetime_s = target_date.strftime("%Y-%m-%d-%H-%M-%S")
-        _fh.write("\n\n# Triggered at [%s]\n## backup-files:\n" % str(triggered_datetime) )
-        # _fh.write(str(file_in_pre_zone_list))
+        event_str = "\n\n# Triggered at [%s]\n## backup-files:\n" % str(triggered_datetime)
         for _F in file_in_pre_zone_list:
-            _fh.write(" - %s\n" % _F )
-        _fh.write("\n")
+            event_str += " - %s\n" % _F
+        event_str += "\n"
+
+        _fh = open(self.output_dir_kept + "backup_history.txt", "a")
+        # _fh.write("\n\n# Triggered at [%s]\n## backup-files:\n" % str(triggered_datetime) )
+        # # _fh.write(str(file_in_pre_zone_list))
+        # for _F in file_in_pre_zone_list:
+        #     _fh.write(" - %s\n" % _F )
+        # _fh.write("\n")
+        _fh.write( event_str )
         _fh.close()
         #
 
-        print("===Post-triggered file backup finished, end of thread.===")
+        print("\n===\n\tPost-triggered file backup finished, end of thread.\n===\n")
     #----------------------------------------------#
 
 
