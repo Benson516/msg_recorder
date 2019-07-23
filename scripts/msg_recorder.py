@@ -17,6 +17,7 @@ import argparse
 from std_msgs.msg import (
     Empty,
     Bool,
+    String,
 )
 
 # _rosbag_caller
@@ -69,6 +70,7 @@ class ROSBAG_CALLER:
         self.rosbag_node_name = node_name + "_"+ self.rosbag_node_name_suffix
         print("rosbag_node_name = %s" % self.rosbag_node_name)
         self._state_sender_func = None
+        self._report_sender_func = None
         #
         self._last_trigger_timestamp = 0.0
 
@@ -145,6 +147,14 @@ class ROSBAG_CALLER:
         """
         self._state_sender_func = sender_func
 
+    def attach_report_sender(self, sender_func):
+        """
+        This is a public method for binding a "publisher.publish" method
+        input:
+        - sender_func: a publisher.publish method
+        """
+        self._report_sender_func = sender_func
+
     def start(self, _warning=False):
         """
         To start recording.
@@ -193,13 +203,27 @@ class ROSBAG_CALLER:
 
     def _send_rosbag_state(self, is_running, _warning=False):
         """
-        This is the output funtion for sending the staet of the rosbag out.
+        This is the output funtion for sending the state of the rosbag out.
         """
         try:
             self._state_sender_func(is_running)
         except:
             if _warning:
                 print("No _stat_sender_func or the attached funtion gots error.")
+
+    def _report_event(self, _report_str, _warning=False):
+        """
+        This is the output funtion for sending the report of the trigger event.
+        """
+        try:
+            msg = String()
+            msg.data = _report_str
+            self._report_sender_func( msg )
+        except:
+            if _warning:
+                print("No _stat_sender_func or the attached funtion gots error.")
+
+
 
     # Subprocess controll
     #-------------------------------------#
@@ -507,7 +531,9 @@ class ROSBAG_CALLER:
         _fh.write( event_str )
         _fh.close()
         #
-
+        # Report by ROS topic
+        self._report_event( event_str )
+        #
         print("\n===\n\tPost-triggered file backup finished, end of thread.\n===\n")
     #----------------------------------------------#
 
@@ -643,6 +669,7 @@ def main(sys_args):
     # Publisher
     _recorder_running_pub = rospy.Publisher("/REC/is_recording", Bool, queue_size=10, latch=True) #
     _recorder_running_pub.publish(False)
+    _trigger_event_report_pub = rospy.Publisher("/REC/trigger_report", String, queue_size=20, latch=True) #
     #--------------------------------------#
 
 
@@ -653,6 +680,7 @@ def main(sys_args):
     #---------------------------------------------#
     _rosbag_caller = ROSBAG_CALLER(param_dict, _node_name)
     _rosbag_caller.attach_state_sender(_recorder_running_pub.publish)
+    _rosbag_caller.attach_report_sender(_trigger_event_report_pub.publish)
 
     # Start at beginning
     if param_dict['start_at_begining']:
