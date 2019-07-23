@@ -49,6 +49,7 @@ q:quit
 - /REC/record:      input, require start/stop recording, type: Bool, value={True:start recording, False:stop recording}
 - /REC/req_backup:   input, trigger for backing-up bags, type: Empty, value={}
 - /REC/is_recording: latched output, displaying the status of the recorder, type: Bool, value={True:recording, False:stopped}
+- /REC/trigger_report: latched output, displaying the information of the latest trigger event, type: String, value={s| s = the string appended to the history file}
 ```
 
 # The Output Bags
