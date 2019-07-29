@@ -577,7 +577,8 @@ def main(sys_args):
     parser.add_argument("-s", "--SETTING_F", help="specify the filename of the setting-file")
     parser.add_argument("-t", "--TOPICS_F", help="specify the filename of the topics-file")
     #---------------------------#
-    _args = parser.parse_args()
+    # _args = parser.parse_args()
+    _args, _unknown = parser.parse_known_args()
 
 
 
