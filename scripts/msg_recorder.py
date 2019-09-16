@@ -93,17 +93,15 @@ class ROSBAG_CALLER:
         self.time_pre_trigger = param_dict.get('time_pre_trigger', 60.0)
         self.time_post_trigger = param_dict.get('time_post_trigger', 5.0)
 
-        # The self.output_dir_tmp and self.output_dir_kept cannot be the same.
-        if self.output_dir_tmp == self.output_dir_kept:
-            if self.output_dir_kept[-1] != "/":
-                self.output_dir_kept += "/"
-            self.output_dir_kept += "rosbag_backup"
-
         # Add '/' at the end
         if self.output_dir_tmp[-1] != "/":
             self.output_dir_tmp += "/"
         if self.output_dir_kept[-1] != "/":
             self.output_dir_kept += "/"
+
+        # The self.output_dir_tmp and self.output_dir_kept cannot be the same.
+        if self.output_dir_tmp == self.output_dir_kept:
+            self.output_dir_kept += "rosbag_backup/"
 
         # If both split_size and record_duration are not specified, set the split size
         if self.is_splitting and self.record_duration is None:
@@ -638,6 +636,10 @@ def main(sys_args):
     for _s in _f:
         # Remove the space and '\n'
         _s1 = _s.rstrip().lstrip()
+        # Deal with coments
+        _idx_comment = _s1.find('#')
+        if _idx_comment >= 0: # Do find a '#'
+            _s1 = _s1[:_idx_comment].rstrip() # Remove the comment parts
         if len(_s1) > 0: # Append non-empty string (after stripping)
             topic_list.append(_s1)
     _f.close()

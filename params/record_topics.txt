@@ -1,10 +1,12 @@
 /LidarAll
-/LidarFrontRight/Raw
-/LidarFrontLeft/Raw
-/LidarRearRight/Raw
-/LidarRearLeft/Raw
-/LidarFrontTop/Raw
+# /LidarFrontRight/Raw
+# /LidarFrontLeft/Raw
+# /LidarRearRight/Raw
+# /LidarRearLeft/Raw
+# /LidarFrontTop/Raw
 /LidarDetection
+
+# /points_map
 
 /gmsl_camera/port_a/cam_0/image_raw/compressed
 /gmsl_camera/port_a/cam_1/image_raw/compressed

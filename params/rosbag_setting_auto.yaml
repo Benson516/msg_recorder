@@ -7,8 +7,8 @@ start_at_begining:  true # Determin if it's going to start rosbag record when th
 # Topics to be recorded, for explicitly identify the topic names, please list in "record_topics.txt"
 is_recording_all_topics: true # false
 #-----------------------------------#
-output_dir_tmp:     ~/rosbag_files
-bag_name_prefix:    my_record
+output_dir_tmp:     ~/rosbag_files/tmp  # The temporary backup files will be put in this folder
+bag_name_prefix:    auto_record
 output_dir_kept:    ~/rosbag_files/backup
 #-----------------------------------#
 
@@ -16,9 +16,9 @@ output_dir_kept:    ~/rosbag_files/backup
 #-----------------------------------#
 is_splitting:       true
 split_size:         3096    # MB, no effect if no split
-max_split_num:      20       # Maximum number of split files. The oldest file will be delete When the one is generated, no effect if no split; empty -> None
+max_split_num:      20 # 6       # Maximum number of split files. The oldest file will be delete When the one is generated, no effect if no split; empty -> None
 #-----------------------------------#
-record_duration:    30      # duration to stop/split; empty -> None -> eternal; 1m -> 1 min.; 30 -> 30 sec.; 2h -> 2 hours
+record_duration:    30 # 2       # duration to stop/split; empty -> None -> eternal; 1m -> 1 min.; 30 -> 30 sec.; 2h -> 2 hours
 #-----------------------------------#
 is_compressed:      false
 compression_method: lz4     # lz4/bz2, default -> lz4; bz2 -> slow, high compression; lz4 -> fast, low compression
