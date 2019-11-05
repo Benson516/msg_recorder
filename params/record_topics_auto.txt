@@ -8,15 +8,15 @@
 
 # /points_map
 
-/gmsl_camera/port_a/cam_0/image_raw/compressed
-/gmsl_camera/port_a/cam_1/image_raw/compressed
-/gmsl_camera/port_a/cam_2/image_raw/compressed
-/gmsl_camera/port_b/cam_0/image_raw/compressed
-/gmsl_camera/port_c/cam_0/image_raw/compressed
-/gmsl_camera/port_c/cam_1/image_raw/compressed
-/gmsl_camera/port_b/cam_1/image_raw/compressed
-/gmsl_camera/port_b/cam_2/image_raw/compressed
-/gmsl_camera/port_c/cam_2/image_raw/compressed
+/cam/F_right
+/cam/F_center
+/cam/F_left
+/cam/F_top
+/cam/R_front
+/cam/R_rear
+/cam/L_front
+/cam/L_rear
+/cam/B_top
 
 /CamObjFrontRight
 /CamObjFrontCenter
