@@ -1,9 +1,9 @@
 /LidarAll
-# /LidarFrontRight/Raw
-# /LidarFrontLeft/Raw
-# /LidarRearRight/Raw
-# /LidarRearLeft/Raw
-# /LidarFrontTop/Raw
+#/LidarFrontRight/Raw
+#/LidarFrontLeft/Raw
+#/LidarRearRight/Raw
+#/LidarRearLeft/Raw
+#/LidarFrontTop/Raw
 /LidarDetection
 
 # /points_map
@@ -18,15 +18,15 @@
 /cam/L_rear
 /cam/B_top
 
-/CamObjFrontRight
-/CamObjFrontCenter
-/CamObjFrontLeft
-/CamObjFrontTop
-/CamObjRightFront
-/CamObjRightBack
-/CamObjLeftFront
-/CamObjLeftBack
-/CamObjBackTop
+#/CamObjFrontRight
+#/CamObjFrontCenter
+#/CamObjFrontLeft
+#/CamObjFrontTop
+#/CamObjRightFront
+#/CamObjRightBack
+#/CamObjLeftFront
+#/CamObjLeftBack
+#/CamObjBackTop
 
 /current_pose
 /veh_info
@@ -37,8 +37,10 @@
 /Flag_Info01
 /Flag_Info02
 /Flag_Info03
-/virBB_array
-/LidarDetection
+/rel_virBB_array
+/abs_virBB_array
+/marker_array_topic
+#/LidarDetection
 
 /mm_tp_topic
 /nav_path
@@ -46,8 +48,7 @@
 /occupancy_grid
 /occupancy_grid_updates
 
-/TrackingOutput
-/PathPredictionOutput/lidar
+/PathPredictionOutput
 /V2X_msg
 
 /tf
