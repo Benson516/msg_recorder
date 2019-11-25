@@ -179,6 +179,22 @@ class ROSBAG_CALLER:
                 print("rosbag is not running, no action.")
             return False
 
+    def split(self, _warning=False):
+        """
+        To stop a record and start a new one
+        """
+        self.stop(_warning)
+        _count = 0
+        _count_max = 1000
+        while self._is_thread_rosbag_valid() and (_count < _count_max):
+            print("Restart waiting count: %d" % _count)
+            _count += 1
+            time.sleep(0.1)
+        if (_count >= _count_max):
+            return False
+        else:
+            return self.start(_warning)
+
     def backup(self):
         """
         Backup all the files interset with time zone.
@@ -700,15 +716,17 @@ def main(sys_args):
     while not rospy.is_shutdown():
         if not _is_key_in:
             # A blocking std_in function
-            str_in = raw_input("\n----------------------\nType a command and press ENTER:\n----------------------\ns:start \nt:terminate \nk:keep file \nq:quit \n----------------------\n>>> ")
+            str_in = raw_input("\n----------------------\nType a command and press ENTER:\n----------------------\ns:start \nt:terminate \nc:cut file \nk:keep file \nq:quit \n----------------------\n>>> ")
             #
-            if str_in == 's':
+            if str_in == 's': # Start
                 _rosbag_caller.start(_warning=True)
-            elif str_in == 't':
+            elif str_in == 't': # Terminate
                 _rosbag_caller.stop(_warning=True)
-            elif str_in == 'k':
+            elif str_in == 'c': # Cut
+                _rosbag_caller.split(_warning=True)
+            elif str_in == 'k': # Keep
                 _rosbag_caller.backup()
-            elif str_in == 'q':
+            elif str_in == 'q': # Quit
                 _rosbag_caller.stop(_warning=False)
                 break
             else:
