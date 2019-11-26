@@ -7,9 +7,9 @@ start_at_begining:  false # Determin if it's going to start rosbag record when t
 # Topics to be recorded, for explicitly identify the topic names, please list in "record_topics.txt"
 is_recording_all_topics: false # true # false
 #-----------------------------------#
-output_dir_tmp:     /media/itri/1TB/rosbag_files
+output_dir_tmp:     ~/rosbag_files # /media/itri/1TB/rosbag_files
 bag_name_prefix:    my_record
-output_dir_kept:    /media/itri/1TB/rosbag_files/backup
+output_dir_kept:    ~/rosbag_files/backup # /media/itri/1TB/rosbag_files/backup
 #-----------------------------------#
 
 # Output behavior setting
