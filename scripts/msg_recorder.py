@@ -511,7 +511,7 @@ class ROSBAG_CALLER:
             # erase_last_lines(n=3, erase=False) # To make the cursor position back to the front of line
             #
             (closest_file_name, is_last) = self._get_latest_inactive_bag(_post_trigger_timestamp)
-            if not closest_file_name in file_in_pre_zone_list:
+            if (not closest_file_name is None) and not closest_file_name in file_in_pre_zone_list:
                 shutil.copy2( (self.output_dir_tmp + closest_file_name), self.output_dir_kept)
                 file_in_pre_zone_list.append(closest_file_name)
             if not is_last:
