@@ -54,6 +54,12 @@
 /abs_virBB_array
 /marker_array_topic
 
+/adFront
+/radar_point_cloud
+/PathPredictionOutput/radar
+/RadarMarker
+/Geofence_PC
+
 
 /mm_tp_topic
 /nav_path
