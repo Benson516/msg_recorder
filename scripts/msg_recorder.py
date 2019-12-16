@@ -47,8 +47,8 @@ class COPY_QUEUE:
         This class is dedicated on doing the following command in an efficient way.
             --> shutil.copy2( (self.src_dir + file_name), self.dst_dir)
         - Prevent duplicated copying
-        (x) Prevent the blocking of copy2() (originally it won't return until the file-copying is done)
-            - To prevent the traffic jam that slows down the main recording, we just let it block...
+        - Prevent the blocking of copy2() (originally it won't return until the file-copying is done)
+            (x) To prevent the traffic jam that slows down the main recording, we just let it block...
         """
         self.src_dir = src_dir
         self.dst_dir = dst_dir
@@ -59,12 +59,22 @@ class COPY_QUEUE:
         self._polling_thread = threading.Thread(target=self._copy_file_listener)
         self._polling_thread.daemon = True # Use daemon to prevent eternal looping
         self._polling_thread.start()
+        #
+        self._copy_thread_list = list()
 
     def add_file(self, file_name):
         """
         This is the public function for entering the name of the file to e copied.
         """
         self.file_Q.put(file_name)
+
+    def _copy_file_worker(self, file_name):
+        """
+        This is the worker for copying file (blocking function)
+        """
+        print("[copyQ] Copying <%s>." % file_name)
+        shutil.copy2( (self.src_dir + file_name), self.dst_dir)
+        print("[copyQ] Finishing copying <%s>." % file_name)
 
     def _copy_file_listener(self):
         """
@@ -79,12 +89,26 @@ class COPY_QUEUE:
                     # The file has not been processed
                     self.copied_file_list.append(a_file)
                     # Really copy a file (blocked until finished)
-                    print("[copyQ] Copying <%s>." % a_file)
-                    shutil.copy2( (self.src_dir + a_file), self.dst_dir)
+                    # print("[copyQ] Copying <%s>." % a_file)
+                    # shutil.copy2( (self.src_dir + a_file), self.dst_dir)
+                    _t = threading.Thread(target=_copy_file_worker, args=(a_file,) )
+                    self._copy_thread_list.append(_t)
+                    _t.start()
                 else:
                     print("[copyQ] Not to copy <%s>." % a_file)
                     # The file is already in the list, not doing copying
                     pass
+                # Remove idle threads
+                #--------------------------------#
+                _idx = 0
+                while _idx >= len(self._copy_thread_list):
+                    if not self._copy_thread_list[_idx].isAlive():
+                        del self._copy_thread_list[_idx]
+                        _idx = 0 # Re-start from beginning...
+                    else:
+                        _idx += 1
+                print("[CopyQ] Number of thread busying = %d" % len(self._copy_thread_list) )
+                #--------------------------------#
             time.sleep(0.2)
 
 
