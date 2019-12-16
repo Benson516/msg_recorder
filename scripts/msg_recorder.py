@@ -371,7 +371,10 @@ class ROSBAG_CALLER:
         target_date_formate = target_date.strftime("%Y-%m-%d-%H-%M-%S")
         # print('target_date = %s' % str(target_date))
         # print('target_date_formate = %s' % target_date_formate)
-        target_name_prefix_date = self.bag_name_prefix + '_' + target_date_formate
+        if self.bag_name_prefix == "":
+            target_name_prefix_date = target_date_formate
+        else:
+            target_name_prefix_date = self.bag_name_prefix + '_' + target_date_formate
         # print('target_name_prefix_date = %s' % target_name_prefix_date)
         # Seraching
         closest_file_name = None
@@ -382,6 +385,7 @@ class ROSBAG_CALLER:
             if file_list[-1-i][-4:] != '.bag':
                 # active file or other file type
                 continue
+            # Note that if self.bag_name_prefix is '', then the following is bypassed
             if file_list[-1-i][:len(self.bag_name_prefix)] != self.bag_name_prefix:
                 # Not our bag
                 continue
@@ -429,8 +433,12 @@ class ROSBAG_CALLER:
         target_date_end_formate = target_date_end.strftime("%Y-%m-%d-%H-%M-%S")
         # print('target_date_start_formate = %s' % target_date_start_formate)
         # print('target_date_end_formate = %s' % target_date_end_formate)
-        target_name_prefix_date_start = self.bag_name_prefix + '_' + target_date_start_formate
-        target_name_prefix_date_end = self.bag_name_prefix + '_' + target_date_end_formate
+        if self.bag_name_prefix == "":
+            target_name_prefix_date_start = target_date_start_formate
+            target_name_prefix_date_end = target_date_end_formate
+        else:
+            target_name_prefix_date_start = self.bag_name_prefix + '_' + target_date_start_formate
+            target_name_prefix_date_end = self.bag_name_prefix + '_' + target_date_end_formate
         # print('target_name_prefix_date_start = %s' % target_name_prefix_date_start)
         # print('target_name_prefix_date_end = %s' % target_name_prefix_date_end)
         # Seraching
