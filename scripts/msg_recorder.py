@@ -230,6 +230,12 @@ class ROSBAG_CALLER:
         # Initialize the COPY_QUEUE
         self.copyQ = COPY_QUEUE(self.output_dir_tmp, self.output_dir_kept)
 
+        # File list watcher
+        self.file_hist_list = list()
+        self._file_list_thread = threading.Thread(target=self._file_list_watcher)
+        self._file_list_thread.daemon = True # Use daemon to prevent eternal looping
+        self._file_list_thread.start()
+
 
     def attach_state_sender(self, sender_func):
         """
@@ -451,13 +457,33 @@ class ROSBAG_CALLER:
 
     # Backing up files
     #----------------------------------------------#
+    def _file_list_watcher(self):
+        """
+        This is the thread worker for listening the file list.
+        """
+        while True:
+            file_list = os.listdir(self.output_dir_tmp)
+            file_list.sort()
+            for _F in file_list:
+                if file_list[-1-i][-4:] != '.bag':
+                    # active file or other file type
+                    continue
+                # Note that if self.bag_name_prefix is '', then the following is bypassed
+                if file_list[-1-i][:len(self.bag_name_prefix)] != self.bag_name_prefix:
+                    # Not our bag
+                    continue
+                if not _F in self.file_hist_list:
+                    self.file_hist_list.append(_F)
+            time.sleep(0.2)
+
     def _get_latest_inactive_bag(self, timestamp=None):
         """
         This is a helper funtion for finding the latest (inactive) bag file.
         """
-        # file_list = dircache.listdir(self.output_dir_tmp) # Python 2.x only
-        file_list = os.listdir(self.output_dir_tmp)
-        file_list.sort() # Sort in ascending order
+        # # file_list = dircache.listdir(self.output_dir_tmp) # Python 2.x only
+        # file_list = os.listdir(self.output_dir_tmp)
+        # file_list.sort() # Sort in ascending order
+        file_list = sorted(self.file_hist_list)
         #
         if timestamp is None:
             target_date = datetime.datetime.now()
@@ -515,9 +541,10 @@ class ROSBAG_CALLER:
         """
         This is a helper funtion for finding the latest (inactive) bag file.
         """
-        # file_list = dircache.listdir(self.output_dir_tmp) # Python 2.x only
-        file_list = os.listdir(self.output_dir_tmp)
-        file_list.sort() # Sort in ascending order
+        # # file_list = dircache.listdir(self.output_dir_tmp) # Python 2.x only
+        # file_list = os.listdir(self.output_dir_tmp)
+        # file_list.sort() # Sort in ascending order
+        file_list = sorted(self.file_hist_list)
         #
         target_date_start = datetime.datetime.fromtimestamp(timestamp_start)
         if timestamp_end is None:
