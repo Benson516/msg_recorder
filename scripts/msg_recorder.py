@@ -42,7 +42,7 @@ class COPY_QUEUE:
     """
     This is the class for handling the file copying.
     """
-    def __init__(self, src_dir, dst_dir, num_copy_thread=2):
+    def __init__(self, src_dir, dst_dir, num_copy_thread=1):
         """
         This class is dedicated on doing the following command in an efficient way.
             --> shutil.copy2( (self.src_dir + file_name), self.dst_dir)
@@ -55,13 +55,14 @@ class COPY_QUEUE:
         #
         self.file_Q = Queue.Queue()
         self.copied_file_list = list()
+        #
+        self.num_copy_thread = num_copy_thread
+        self._copy_thread_list = list()
         # Start the polling thread
         self._polling_thread = threading.Thread(target=self._copy_file_listener)
         self._polling_thread.daemon = True # Use daemon to prevent eternal looping
         self._polling_thread.start()
-        #
-        self.num_copy_thread = num_copy_thread
-        self._copy_thread_list = list()
+
 
     def add_file(self, file_name):
         """
@@ -89,7 +90,7 @@ class COPY_QUEUE:
                 _idx = 0 # Re-start from beginning...
             else:
                 _idx += 1
-        print("[CopyQ] Number of thread busying = %d" % len(self._copy_thread_list) )
+        # print("[CopyQ] Number of thread busying = %d" % len(self._copy_thread_list) )
         #--------------------------------#
 
     def _copy_file_listener(self):
@@ -100,10 +101,10 @@ class COPY_QUEUE:
             # Note: this thread will only closed if this program is stopped
             while not self.file_Q.empty():
                 self._remove_idle_threads()
-                # if len(self._copy_thread_list) >= self.num_copy_thread:
-                #     # The pool is full, keep waiting
-                #     print("[CopyQ] Copy thread pool is full, keep waiting.")
-                #     break
+                if len(self._copy_thread_list) >= self.num_copy_thread:
+                    # The pool is full, keep waiting
+                    # print("[CopyQ] Copy thread pool is full, keep waiting.")
+                    break
                 a_file = self.file_Q.get()
                 print("[copyQ] Get <%s> from list." % a_file)
                 if not a_file in self.copied_file_list:
@@ -119,7 +120,10 @@ class COPY_QUEUE:
                     print("[copyQ] Not to copy <%s>." % a_file)
                     # The file is already in the list, not doing copying
                     pass
-                # print("[CopyQ] Number of thread busying = %d" % len(self._copy_thread_list) )
+            #
+            if len(self._copy_thread_list) > 0:
+                print("[CopyQ] Number of thread busying = %d" % len(self._copy_thread_list) )
+            #
             time.sleep(0.2)
 
 
