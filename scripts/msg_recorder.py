@@ -6,6 +6,7 @@ import sys, os
 import signal
 import subprocess
 import threading
+import Queue
 import yaml, json
 # File operations
 import datetime
@@ -37,7 +38,57 @@ def erase_last_lines(n=1, erase=False):
             sys.stdout.write(ERASE_LINE)
 #---------------------------------------------------#
 
+class COPY_QUEUE:
+    """
+    This is the class for handling the file copying.
+    """
+    def __init__(self, src_dir, dst_dir):
+        """
+        This class is dedicated on doing the following command in an efficient way.
+            --> shutil.copy2( (self.src_dir + file_name), self.dst_dir)
+        - Prevent duplicated copying
+        (x) Prevent the blocking of copy2() (originally it won't return until the file-copying is done)
+            - To prevent the traffic jam that slows down the main recording, we just let it block...
+        """
+        self.src_dir = src_dir
+        self.dst_dir = dst_dir
+        #
+        self.file_Q = Queue.Queue()
+        self.copied_file_list = list()
+        # Start the polling thread
+        self._polling_thread = threading.Thread(target=self._copy_file_listener)
+        self._polling_thread.daemon = True # Use daemon to prevent eternal looping
+        self._polling_thread.start()
 
+    def add_file(self, file_name):
+        """
+        This is the public function for entering the name of the file to e copied.
+        """
+        self.file_Q.put(file_name)
+
+    def _copy_file_listener(self):
+        """
+        This is the thread worker function for listening the file names from queue.
+        """
+        while True:
+            # Note: this thread will only closed if this program is stopped
+            while not self.file_Q.empty():
+                a_file = self.file_Q.get()
+                print("[copyQ] Get <%s> from list." % a_file)
+                if not a_file in self.copied_file_list:
+                    # The file has not been processed
+                    self.copied_file_list.append(a_file)
+                    # Really copy a file (blocked until finished)
+                    print("[copyQ] Copying <%s>." % a_file)
+                    shutil.copy2( (self.src_dir + a_file), self.dst_dir)
+                else:
+                    print("[copyQ] Not to copy <%s>." % a_file)
+                    # The file is already in the list, not doing copying
+                    pass
+            time.sleep(0.2)
+
+
+#---------------------------------------------------#
 class ROSBAG_CALLER:
     """
     This is the function for handling the rosbag subprocess.
@@ -136,6 +187,10 @@ class ROSBAG_CALLER:
         except:
             print("The directry <%s> already exists." % self.output_dir_kept)
             pass
+
+        # Initialize the COPY_QUEUE
+        self.copyQ = COPY_QUEUE(self.output_dir_tmp, self.output_dir_kept)
+
 
     def attach_state_sender(self, sender_func):
         """
@@ -488,7 +543,8 @@ class ROSBAG_CALLER:
         print("file_in_pre_zone_list = %s" % file_in_pre_zone_list)
         # Bacuk up "a.bag", note tha empty list is allowed
         for _F in file_in_pre_zone_list:
-            shutil.copy2( (self.output_dir_tmp + _F), self.output_dir_kept)
+            # shutil.copy2( (self.output_dir_tmp + _F), self.output_dir_kept)
+            self.copyQ.add_file(_F)
 
         """
         # Start a deamon thread for watching the "b.bag"
@@ -520,13 +576,14 @@ class ROSBAG_CALLER:
             #
             (closest_file_name, is_last) = self._get_latest_inactive_bag(_post_trigger_timestamp)
             if (not closest_file_name is None) and not closest_file_name in file_in_pre_zone_list:
-                shutil.copy2( (self.output_dir_tmp + closest_file_name), self.output_dir_kept)
+                # shutil.copy2( (self.output_dir_tmp + closest_file_name), self.output_dir_kept)
+                self.copyQ.add_file(closest_file_name)
                 file_in_pre_zone_list.append(closest_file_name)
             if not is_last:
                 break
             time.sleep(1.0)
         #
-        # Find all the rest "b.bag" files
+        # Find all the rest "b.bag" files (prevent the leak)
         # Note: most of them had been backuped
         file_in_post_zone_list = self._get_list_of_inactive_bag_in_timezone( _trigger_timestamp, _post_trigger_timestamp)
         print("file_in_post_zone_list = %s" % file_in_post_zone_list)
@@ -534,7 +591,8 @@ class ROSBAG_CALLER:
         for _F in file_in_post_zone_list:
             if not _F in file_in_pre_zone_list:
                 file_in_pre_zone_list.append(_F)
-                shutil.copy2( (self.output_dir_tmp + _F), self.output_dir_kept)
+                # shutil.copy2( (self.output_dir_tmp + _F), self.output_dir_kept)
+                self.copyQ.add_file(_F)
 
         # Write an indication text
         file_in_pre_zone_list.sort()
