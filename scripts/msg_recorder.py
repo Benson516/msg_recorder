@@ -42,7 +42,7 @@ class COPY_QUEUE:
     """
     This is the class for handling the file copying.
     """
-    def __init__(self, src_dir, dst_dir, num_copy_thread=1):
+    def __init__(self, src_dir, dst_dir, num_copy_thread=3):
         """
         This class is dedicated on doing the following command in an efficient way.
             --> shutil.copy2( (self.src_dir + file_name), self.dst_dir)
@@ -87,7 +87,8 @@ class COPY_QUEUE:
         while _idx < len(self._copy_thread_list):
             if not self._copy_thread_list[_idx].isAlive():
                 del self._copy_thread_list[_idx]
-                _idx = 0 # Re-start from beginning...
+                # _idx = 0 # Re-start from beginning...
+                # NOTE: the _idx is automatically pointing to the next one
             else:
                 _idx += 1
         # print("[CopyQ] Number of thread busying = %d" % len(self._copy_thread_list) )
@@ -122,6 +123,7 @@ class COPY_QUEUE:
                     pass
             #
             if len(self._copy_thread_list) > 0:
+                self._remove_idle_threads()
                 print("[CopyQ] Number of thread busying = %d" % len(self._copy_thread_list) )
             #
             time.sleep(0.2)
@@ -464,7 +466,7 @@ class ROSBAG_CALLER:
         while True:
             file_list = os.listdir(self.output_dir_tmp)
             file_list.sort()
-            for _F in file_list:
+            for i in range(len(file_list)):
                 if file_list[-1-i][-4:] != '.bag':
                     # active file or other file type
                     continue
@@ -472,8 +474,8 @@ class ROSBAG_CALLER:
                 if file_list[-1-i][:len(self.bag_name_prefix)] != self.bag_name_prefix:
                     # Not our bag
                     continue
-                if not _F in self.file_hist_list:
-                    self.file_hist_list.append(_F)
+                if not file_list[-1-i] in self.file_hist_list:
+                    self.file_hist_list.append( file_list[-1-i] )
             time.sleep(0.2)
 
     def _get_latest_inactive_bag(self, timestamp=None):
