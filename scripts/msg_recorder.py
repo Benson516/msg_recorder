@@ -715,7 +715,7 @@ def _backup_trigger_callback(data):
     The callback function for operation command.
     """
     global _rosbag_caller
-    _rosbag_caller.backup()
+    _rosbag_caller.backup(reason=data.data)
 
 
 
@@ -844,7 +844,7 @@ def main(sys_args):
     #--------------------------------------#
     # Subscriber
     rospy.Subscriber("/REC/record", Bool, _record_cmd_callback)
-    rospy.Subscriber("/REC/req_backup", Empty, _backup_trigger_callback)
+    rospy.Subscriber("/REC/req_backup", String, _backup_trigger_callback)
     # Publisher
     _recorder_running_pub = rospy.Publisher("/REC/is_recording", Bool, queue_size=10, latch=True) #
     _recorder_running_pub.publish(False)
