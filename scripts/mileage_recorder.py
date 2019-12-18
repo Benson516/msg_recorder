@@ -3,7 +3,6 @@ import rospy, rospkg
 import math
 import time
 import sys, os
-import signal
 import subprocess
 import threading
 import yaml, json
@@ -25,112 +24,147 @@ from std_msgs.msg import (
     String,
 )
 
+from msgs.msg import (
+    VehInfo,
+    Flag_Info,
+)
 
+# Global variables
+#-------------------#
+mileage_km = 0.0
+last_speed_ros_time = None
+speed_mps_filtered = 0.0 # m/sec.
+#
+is_manual_brake = False
+# Queue
+manual_brake_Q = Queue.Queue()
+#-------------------#
 
-def _record_cmd_callback(data):
+def calculate_mileage(speed_mps):
     """
-    The callback function for operation command.
+    This is the engin for calculating mileage.
     """
-    global _rosbag_caller
-    if data.data:
-        _rosbag_caller.start(_warning=True)
-    else:
-        _rosbag_caller.stop(_warning=True)
+    global mileage_km, last_speed_ros_time, speed_mps_filtered
+    #
+    if last_speed_ros_time is None:
+        last_speed_ros_time = rospy.get_rostime()
+    now = rospy.get_rostime()
+    delta_t = (now - last_speed_ros_time).to_sec()
+    if delta_t < 0.0:
+        delta_t = 0.0
+    last_speed_ros_time = now
+    #
+    speed_mps_filtered += 0.1*(speed_mps - speed_mps_filtered)
+    #
+    mileage_km += (speed_mps_filtered * delta_t)*0.001
+    # print("mileage: %f km, speed(filter): %f(%f) km/hr" % (mileage_km, speed_mps*3.6, speed_mps_filtered*3.6) )
 
-def _backup_trigger_callback(data):
+
+
+def _veh_info_CB(data):
     """
-    The callback function for operation command.
+    The callback function of vehicle info.
     """
-    global _rosbag_caller
-    _rosbag_caller.backup(reason=data.data)
+    # print("ego_speed = %f" % data.ego_speed)
+    calculate_mileage( data.ego_speed )
 
+def _flag_info_02_CB(data):
+    """
+    The callback function of vehicle info.
+    """
+    global is_manual_brake, manual_brake_Q
+    print("Dspace_Flag07 = %f" % data.Dspace_Flag07)
 
+    # 0: no manual brake, 1: manually braked
+    is_manual_brake_now = data.Dspace_Flag07 > 0.5
+    if is_manual_brake != is_manual_brake_now:
+        # State change event
+        now = rospy.get_rostime()
+        is_manual_brake = is_manual_brake_now
+        manual_brake_Q.put( (is_manual_brake, now) )
+        if is_manual_brake:
+            print("Manually brake!!")
+        else:
+            print("Release manual brake~")
 
 
 def main(sys_args):
-
-
-
-    # Process arguments
-    parser = argparse.ArgumentParser(description="Record ROS messages to rosbag files with enhanced controllability.\nThere are mainly two usage:\n- Manual-mode: simple start/stop record control\n- Auto-mode: Continuous recording with files backup via triggers.")
-    #---------------------------#
-    # Explicitly chose to auto-mode or manual-mode (exculsive)
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument("-A", "--auto", action="store_true", help="continuous recording with triggered backup")
-    group.add_argument("-M", "--manual", action="store_true", help="manually control the start/stop of recorder")
-    # UI setting
-    parser.add_argument("--NO_KEY_IN", action="store_true", help="disable the stdin (keyboard) user-input")
-    # Full setting, the following setting will overwrite the above settings.
-    parser.add_argument("-d", "--PARAM_DIR", help="specify the directory of the setting-file and topics-file")
-    parser.add_argument("-s", "--SETTING_F", help="specify the filename of the setting-file")
-    parser.add_argument("-t", "--TOPICS_F", help="specify the filename of the topics-file")
-    #---------------------------#
-    # _args = parser.parse_args()
-    _args, _unknown = parser.parse_known_args()
-
-
-
+    """
+    """
+    global mileage_km, speed_mps_filtered
+    global is_manual_brake, manual_brake_Q
     #
-    rospy.init_node('odometer', anonymous=True)
-    #
-    _node_name = rospy.get_name()[1:] # Removing the '/'
-    print("_node_name = %s" % _node_name)
-    #
-    rospack = rospkg.RosPack()
-    _pack_path = rospack.get_path('msg_recorder')
-    print("_pack_path = %s" % _pack_path)
+    rospy.init_node('mileage_recorder', anonymous=False)
+
     # Loading parameters
     #---------------------------------------------#
     rospack = rospkg.RosPack()
-    pack_path = rospack.get_path('msg_recorder')
+    _pack_path = rospack.get_path('msg_recorder')
+    print("_pack_path = %s" % _pack_path)
     f_path = _pack_path + "/params/"
-
-    # Manual mode
-    f_name_params = "rosbag_setting.yaml"
-
-    # Read param file
-    #------------------------#
-    _f = open( (f_path+f_name_params),'r')
-    params_raw = _f.read()
-    _f.close()
+    # Param file name
+    f_name_params = "mileage_setting.yaml"
+    #----------------#
+    params_raw = ""
+    with open( (f_path+f_name_params),'r') as _f:
+        params_raw = _f.read()
     param_dict = yaml.load(params_raw)
-    #------------------------#
-
-
-
-
     # Print the params
-    # print("param_dict = %s" % str(param_dict))
-    print("\nsettings (in json format):\n%s" % json.dumps(param_dict, indent=4))
-
-
-    # test, the param_dict after combination
-    # print("param_dict = %s" % str(param_dict))
-    # print("param_dict (in json format):\n%s" % json.dumps(param_dict, indent=4))
+    print("\nSettings (in json format):\n%s" % json.dumps(param_dict, indent=4))
     #---------------------------------------------#
+
+    # Creating directories if necessary
+    #---------------------------------------------#
+    output_dir_tmp = param_dict["output_dir_tmp"]
+    # Add '/' at the end
+    if output_dir_tmp[-1] != "/":
+        output_dir_tmp += "/"
+    # Preprocessing for parameters
+    output_dir_tmp = os.path.expandvars( os.path.expanduser(output_dir_tmp) )
+    print("output_dir_tmp = %s" % output_dir_tmp)
+    # Creating directories
+    try:
+        _out = subprocess.check_output(["mkdir", "-p", output_dir_tmp], stderr=subprocess.STDOUT)
+        print("The directory <%s> has been created." % output_dir_tmp)
+    except:
+        print("The directry <%s> already exists." % output_dir_tmp)
+        pass
+    #---------------------------------------------#
+
+
 
     # Init ROS communication interface
     #--------------------------------------#
     # Subscriber
-    rospy.Subscriber("/REC/record", Bool, _record_cmd_callback)
-    rospy.Subscriber("/REC/req_backup", String, _backup_trigger_callback)
+    rospy.Subscriber("/veh_info", VehInfo, _veh_info_CB)
+    rospy.Subscriber("/Flag_Info02", VehInfo, _flag_info_02_CB)
     # Publisher
-    _recorder_running_pub = rospy.Publisher("/REC/is_recording", Bool, queue_size=10, latch=True) #
-    _recorder_running_pub.publish(False)
-    _trigger_event_report_pub = rospy.Publisher("/REC/trigger_report", String, queue_size=20, latch=True) #
     #--------------------------------------#
 
 
 
-
-    # Determine if we are using keyboard input
-    _is_key_in = _args.NO_KEY_IN
-
-
     # Loop for user command via stdin
+    rate = rospy.Rate(5.0) # Hz
     while not rospy.is_shutdown():
+        # Do somthing
+        evet_str = "mileage: %.3f km, speed(filter): %.1f km/hr" % (mileage_km, speed_mps_filtered*3.6)
+        if is_manual_brake:
+            evet_str += ", manually braked"
+        print(evet_str)
         #
-        time.sleep(0.5)
+        if not manual_brake_Q.empty():
+            manual_brake_event = manual_brake_Q.get()
+            # if manual_brake_event[0]:
+            #     print("Manually brake!!")
+            # else:
+            #     print("Release manual brake~")
+
+        #
+        try:
+            rate.sleep()
+        except:
+            # For ros time moved backward
+            pass
     print("End of main loop.")
 
 
@@ -142,4 +176,4 @@ if __name__ == '__main__':
         main(sys.argv)
     except rospy.ROSInterruptException:
         pass
-    print("End of odometer.")
+    print("End of mileage_recorder.")
