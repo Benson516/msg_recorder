@@ -42,7 +42,7 @@ manual_brake_Q = Queue.Queue()
 
 def calculate_mileage(speed_mps):
     """
-    This is the engin for calculating mileage.
+    This is the engine for calculating mileage.
     """
     global mileage_km, last_speed_ros_time, speed_mps_filtered
     #
