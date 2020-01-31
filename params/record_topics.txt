@@ -77,6 +77,15 @@
 
 /V2X_msg
 
+# Added at 2020/1/31
+/local_waypoints_mark
+/rear_vehicle_target_point
+/front_vehicle_target_point
+/LidarDetection/grid
+/CameraDetection/occupancy_grid
+/occupancy_grid_all_expand
+
+# tf
 /tf
 /tf_static
 
