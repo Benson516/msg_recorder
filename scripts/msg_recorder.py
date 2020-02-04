@@ -42,6 +42,16 @@ def erase_last_lines(n=1, erase=False):
             sys.stdout.write(ERASE_LINE)
 #---------------------------------------------------#
 
+
+
+class DISK_MANAGER(object):
+    """
+    """
+    def __init__(self):
+        """
+        """
+        pass
+
 class MOVE_QUEUE(object):
     """
     This is the class for handling the file copying.
