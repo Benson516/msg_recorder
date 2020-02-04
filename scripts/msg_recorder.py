@@ -335,7 +335,7 @@ class ROSBAG_CALLER(object):
         # NOTE: currently we only do this at start-up
         print("\n-------\n")
         # rm_datetime_th = None
-        rm_datetime_th = datetime.datetime.now() - datetime.timedelta(4)
+        rm_datetime_th = datetime.datetime.now() - datetime.timedelta(4) # ? days ago
         print("Remove files before %s if disk space is not enough." % (rm_datetime_th.isoformat()))
         self.disk_manager = DISK_MANAGER(self.output_dir_tmp, freespace_low_threshold_GB=35, rm_before_datetime=rm_datetime_th)
         is_disk_cleaned = self.disk_manager.clean_disk()
