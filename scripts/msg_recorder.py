@@ -330,17 +330,18 @@ class ROSBAG_CALLER(object):
         self.output_dir_kept = os.path.expandvars( os.path.expanduser(self.output_dir_kept) )
         print("self.output_dir_tmp = %s" % self.output_dir_kept)
 
-
         # Creating directories
         try:
-            _out = subprocess.check_output(["mkdir", "-p", self.output_dir_tmp], stderr=subprocess.STDOUT)
+            # _out = subprocess.check_output(["mkdir", "-p", self.output_dir_tmp], stderr=subprocess.STDOUT)
+            os.makedirs(self.output_dir_tmp)
             print("The directory <%s> has been created." % self.output_dir_tmp)
         except:
             print("The directry <%s> already exists." % self.output_dir_tmp)
             pass
 
         try:
-            _out = subprocess.check_output(["mkdir", "-p", self.output_dir_kept], stderr=subprocess.STDOUT)
+            # _out = subprocess.check_output(["mkdir", "-p", self.output_dir_kept], stderr=subprocess.STDOUT)
+            os.makedirs(self.output_dir_kept)
             print("The directory <%s> has been created." % self.output_dir_kept)
         except:
             print("The directry <%s> already exists." % self.output_dir_kept)
