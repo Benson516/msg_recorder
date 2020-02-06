@@ -3,6 +3,9 @@ import json
 import subprocess
 import time
 import datetime
+from rosbag.bag import Bag
+
+
 
 topic_str = "/ADV_op/req_run_stop /ADV_op/run_state /ADV_op/sync /ADV_op/sys_fail_reason /ADV_op/sys_ready /CamObjBackTop /CamObjFrontCenter /CamObjFrontLeft /CamObjFrontRight /CamObjFrontTop /CamObjLeftBack /CamObjLeftFront /CamObjRightBack /CamObjRightFront /CameraDetection/occupancy_grid /CameraDetection/polygon /Flag_Info01 /Flag_Info02 /Flag_Info03 /Geofence_PC /LidarAll /LidarDetection /LidarDetection/grid /Path /PathPredictionOutput /PathPredictionOutput/camera /PathPredictionOutput/lidar /PathPredictionOutput/radar /PedCross/Pedestrians /REC/is_recording /REC/req_backup /RadarMarker /SensorFusion /V2X_msg /abs_virBB_array /backend/connected /cam/B_top /cam/F_center /cam/F_left /cam/F_right /cam/F_top /cam/L_front /cam/L_rear /cam/R_front /cam/R_rear /current_pose /dynamic_path_para /front_vehicle_target_point /imu_data /local_waypoints_mark /localization_state /localization_to_veh /marker_array_topic /mileage/brake_status /mm_tp_topic /nav_path /nav_path_astar_final /node_trace/all_alive /occupancy_grid /occupancy_grid_all_expand /occupancy_grid_updates /radFront /radar_point_cloud /rear_vehicle_target_point /rel_virBB_array /ring_edge_point_cloud /tf /tf_static /veh_info"
 #
@@ -64,8 +67,23 @@ def parse_backup_start_timestamp(bag_name):
     #
     return string_to_datetime( bag_name[idx_head:idx_tail] )
 
-
-
+def get_backup_start_timestamp(bag_name):
+    """
+    Input: Fisrt bag name
+    Output: datatime object
+    """
+    info_dict = yaml.load(Bag(bag_name, 'r')._get_yaml_info())
+    start_timestamp = info_dict.get("start", None)
+    start_datetime = None
+    if start_timestamp is None:
+        print("No start time info in bag, try to retrieve the start time by parsing bag name.")
+        start_datetime = parse_backup_start_timestamp(bag_name)
+    else:
+        start_datetime = datetime.datetime.fromtimestamp(start_timestamp)
+    # print("info_dict = \n%s" % str(info_dict))
+    # print('type(info_dict["start"]) = %s' % type(info_dict["start"]))
+    # print(info_dict["start"])
+    return start_datetime
 
 
 def play_bag(file_list, topic_list=None, clock=True, loop=True, start_str=None, duration_str=None, rate_str=None):
@@ -154,9 +172,10 @@ def main():
     if (not id_in is None) and (id_in >= 0) and (id_in < len(bag_dict_list)):
         #
         _d = bag_dict_list[id_in]
-        file_list = _d["bags"]
+        file_list = sorted(_d["bags"])
         # Calculate the relative time
-        start_datetime = parse_backup_start_timestamp( file_list[0] )
+        # start_datetime = parse_backup_start_timestamp( file_list[0] )
+        start_datetime = get_backup_start_timestamp( file_list[0] )
         event_datetime = _d["timestamp"]
         delta_time = event_datetime - start_datetime
         #
