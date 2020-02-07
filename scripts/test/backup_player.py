@@ -184,10 +184,47 @@ def main():
         print("\n---\nThe event happened at %f sec.\n---" % event_sec)
 
         # Other control items
-        s_str_in = txt_input("Start from? (default: 0, unit: sec.)\n")
-        u_str_in = txt_input('Duration? (default: "record-length", unit: sec.)\n')
+        s_str_in = txt_input('Start from? (default: 0, unit: sec.) ("e5" --> (event time - 5.0 sec))\n')
+        u_str_in = txt_input('Duration? (default: "record-length", unit: sec.) ("e" --> symetric around the event time, event should happen at the middle of playback)\n')
         r_str_in = txt_input("Rate? (default: 1, unit: x)\n")
 
+        s_str_in = s_str_in.strip()
+        u_str_in = u_str_in.strip()
+        r_str_in = r_str_in.strip()
+
+        # Generate the time around event time
+        start_time = 0.0
+        duration = 0.0
+        if len(s_str_in) > 0:
+            if s_str_in[0] == "e":
+                try:
+                    start_time = event_sec - float(s_str_in[1:])
+                except ValueError as e:
+                    print(e)
+                    default_ahead_t = 5.0
+                    print("start_time: No proper time ahead given after 'e', using default value [%f]." % default_ahead_t)
+                    start_time = event_sec - default_ahead_t
+                #
+                if start_time < 0.0:
+                    start_time = 0.0
+                s_str_in = "%f" % start_time
+                print("start_time = %f" % start_time)
+            else: # Normal value, no "e" or other commands
+                try:
+                    start_time = float(s_str_in)
+                except ValueError as e:
+                    print(e)
+                    print("start_time: No proper time given, start from head.")
+                    start_time = 0.0
+            #
+        #
+        if len(u_str_in) > 0 and u_str_in[0] == "e":
+            duration = (event_sec - start_time)*2.0
+            u_str_in = "%f" % duration
+            print("duration = %f" % duration)
+
+        # Indicate the event happend relative time
+        print("\n-------\nNote: Event happend at %.2f sec.\n-------\n" % (event_sec - start_time))
 
         play_bag(file_list, topic_list=topic_list, clock=True, loop=True,  start_str=s_str_in, duration_str=u_str_in, rate_str=r_str_in)
     else:
